@@ -1,36 +1,61 @@
 pipeline {
-agent any
+    agent any
 
-```
-environment {
-    IMAGE_NAME = "node-k8s-app"
+    stages {
+
+        stage('Checkout from GitHub') {
+            steps {
+                git branch: 'master',
+                    url: 'https://github.com/sahithibilla/node-k8s-app.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t my-k8s-app:${BUILD_NUMBER} .
+                docker tag my-k8s-app:${BUILD_NUMBER} sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                sh 'docker push sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}'
+            }
+        }
+
+    stage('Start Minikube if not running') {
+    steps {
+        sh '''
+        if ! minikube status | grep -q "apiserver: Running"; then
+            echo "Minikube is not running. Starting now..."
+            minikube start --driver=docker --memory=2048 --cpus=2
+        fi
+        '''
+    }
 }
 
-stages {
+        stage('Deploy to Kubernetes') {
+            steps {
+                sh '''
+                # Replace image tag inside deployment.yaml
+                sed -i "s/IMAGE_TAG/${BUILD_NUMBER}/g" k8s/deployment.yaml
 
-    stage('Build Docker Image') {
-        steps {
-            sh 'docker build -t $IMAGE_NAME .'
-        }
-    }
+                # Load image into Minikube
+                minikube image load sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}
 
-    stage('Run Container') {
-        steps {
-            sh '''
-            docker stop nodeapp || true
-            docker rm nodeapp || true
-            docker run -d -p 9090:8080 --name nodeapp $IMAGE_NAME
-            '''
-        }
-    }
-
-    stage('Done') {
-        steps {
-            echo 'App running at http://localhost:9090'
+                # Apply manifests
+                minikube kubectl -- apply -f k8s/deployment.yaml
+                minikube kubectl -- apply -f k8s/service.yaml
+                '''
+            }
         }
     }
 }
-```
-
-}
-
