@@ -20,14 +20,14 @@ pipeline {
             steps {
                 sh '''
                 docker build -t my-k8s-app:${BUILD_NUMBER} .
-                docker tag my-k8s-app:${BUILD_NUMBER} sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}
+                docker tag my-k8s-app:${BUILD_NUMBER} billasahithi/my-k8s-app:${BUILD_NUMBER}
                 '''
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                sh 'docker push sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}'
+                sh 'docker push billasahithi/my-k8s-app:${BUILD_NUMBER}'
             }
         }
 
@@ -49,7 +49,7 @@ pipeline {
                 sed -i "s/IMAGE_TAG/${BUILD_NUMBER}/g" k8s/deployment.yaml
 
                 # Load image into Minikube
-                minikube image load sathwikaneligonda/my-k8s-app:${BUILD_NUMBER}
+                minikube image load billasahithi/my-k8s-app:${BUILD_NUMBER}
 
                 # Apply manifests
                 minikube kubectl -- apply -f k8s/deployment.yaml
