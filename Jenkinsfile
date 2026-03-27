@@ -3,15 +3,14 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "billasahithi/my-k8s-app:${BUILD_NUMBER}"
-        DOCKER_USER = credentials('docker-username') 
-        DOCKER_PASS = credentials('docker-password')
+        DOCKER_CREDS = credentials('docker-cred')
     }
 
     stages {
 
         stage('Checkout Code') {
             steps {
-                git branch: 'master',
+                git branch: 'main',
                     url: 'https://github.com/sahithibilla/node-k8s-app.git'
             }
         }
@@ -30,7 +29,9 @@ pipeline {
 
         stage('Docker Login') {
             steps {
-                sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                sh '''
+                echo $DOCKER_CREDS_PSW | docker login -u $DOCKER_CREDS_USR --password-stdin
+                '''
             }
         }
 
@@ -56,13 +57,13 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 sh '''
-                # Update image tag in deployment.yaml
+                # Replace IMAGE_TAG in deployment.yaml
                 sed -i "s|IMAGE_TAG|${BUILD_NUMBER}|g" k8s/deployment.yaml
 
                 # Load image into Minikube
                 minikube image load $DOCKER_IMAGE
 
-                # Apply Kubernetes manifests
+                # Apply Kubernetes configs
                 kubectl apply -f k8s/deployment.yaml
                 kubectl apply -f k8s/service.yaml
                 '''
